@@ -95,7 +95,9 @@ class OnboardingViewModel: ObservableObject {
         case .createAccount:
             currentStep = .welcome
         case .goalSelection:
-            currentStep = .createAccount
+            // If user is logged in, there's no createAccount step to go back to
+            // So we don't allow going back from goal selection
+            break
         case .scheduleBuilder:
             currentStep = .goalSelection
         case .startingWeights:

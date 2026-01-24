@@ -70,7 +70,7 @@ enum WorkoutDefaults {
             return ["barbell-squat", "romanian-deadlift", "leg-press", "walking-lunges", "lying-leg-curl", "standing-calf-raise"]
         case .fullBody:
             return ["barbell-squat", "bench-press", "barbell-row", "overhead-press", "romanian-deadlift", "barbell-curl"]
-        case .cardio, .rest:
+        case .cardio, .rest, .basketball:
             return []
         }
     }

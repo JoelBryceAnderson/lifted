@@ -120,6 +120,7 @@ enum WorkoutType: String, Codable, CaseIterable {
     case lower
     case fullBody
     case cardio
+    case basketball
     case rest
 
     var displayName: String {
@@ -132,6 +133,7 @@ enum WorkoutType: String, Codable, CaseIterable {
         case .lower: return "Lower Body"
         case .fullBody: return "Full Body"
         case .cardio: return "Cardio"
+        case .basketball: return "Basketball"
         case .rest: return "Rest Day"
         }
     }
@@ -146,6 +148,7 @@ enum WorkoutType: String, Codable, CaseIterable {
         case .lower: return "All lower body muscle groups"
         case .fullBody: return "All major muscle groups"
         case .cardio: return "Cardiovascular training"
+        case .basketball: return "Basketball-specific training and skills"
         case .rest: return "Recovery day"
         }
     }
@@ -160,6 +163,7 @@ enum WorkoutType: String, Codable, CaseIterable {
         case .lower: return "figure.run"
         case .fullBody: return "figure.strengthtraining.traditional"
         case .cardio: return "heart.fill"
+        case .basketball: return "basketball.fill"
         case .rest: return "bed.double.fill"
         }
     }
@@ -174,6 +178,7 @@ enum WorkoutType: String, Codable, CaseIterable {
         case .lower: return "pink"
         case .fullBody: return "red"
         case .cardio: return "yellow"
+        case .basketball: return "brown"
         case .rest: return "gray"
         }
     }
@@ -188,6 +193,7 @@ enum WorkoutType: String, Codable, CaseIterable {
         case .lower: return [.quads, .hamstrings, .glutes, .calves]
         case .fullBody: return MuscleGroup.allCases
         case .cardio: return []
+        case .basketball: return [.quads, .hamstrings, .glutes, .calves, .shoulders, .core]
         case .rest: return []
         }
     }

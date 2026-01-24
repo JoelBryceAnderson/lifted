@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct GoalSelectionView: View {
+    @EnvironmentObject var authViewModel: AuthViewModel
     @EnvironmentObject var onboardingViewModel: OnboardingViewModel
 
     var body: some View {
@@ -38,6 +39,7 @@ struct GoalSelectionView: View {
             Spacer()
 
             OnboardingNavigationButtons(
+                showBack: authViewModel.user == nil, // Only show back button if not logged in
                 canProceed: onboardingViewModel.selectedGoal != nil
             )
         }
@@ -124,5 +126,6 @@ struct ProgressionBadge: View {
 
 #Preview {
     GoalSelectionView()
+        .environmentObject(AuthViewModel())
         .environmentObject(OnboardingViewModel())
 }

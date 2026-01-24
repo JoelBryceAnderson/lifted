@@ -184,6 +184,12 @@ actor ScheduleService {
         let daysSinceStart = calendar.dateComponents([.day], from: schedule.createdAt, to: Date()).day ?? 0
         return daysSinceStart % schedule.cycleDurationDays
     }
+    
+    nonisolated func getCycleDay(for date: Date, schedule: WorkoutSchedule) -> Int {
+        let calendar = Calendar.current
+        let daysSinceStart = calendar.dateComponents([.day], from: schedule.createdAt, to: date).day ?? 0
+        return daysSinceStart % schedule.cycleDurationDays
+    }
 
     func getNextWorkoutDate(schedule: WorkoutSchedule, from date: Date = Date()) -> Date? {
         let calendar = Calendar.current

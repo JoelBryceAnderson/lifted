@@ -10,12 +10,14 @@ struct ContentView: View {
     @StateObject private var trainerViewModel = TrainerViewModel()
 
     var body: some View {
-        Group {
+        let _ = print("📱 ContentView rendering - isLoading: \(authViewModel.isLoading), user: \(authViewModel.user?.email ?? "nil"), showOnboarding: \(authViewModel.showOnboarding)")
+        
+        return Group {
             if authViewModel.isLoading {
                 LoadingOverlay(message: "Loading...")
             } else if authViewModel.user == nil {
                 OnboardingContainerView()
-            } else if !authViewModel.hasCompletedOnboarding {
+            } else if authViewModel.showOnboarding {
                 OnboardingContainerView()
             } else {
                 MainTabView()
@@ -27,6 +29,12 @@ struct ContentView: View {
         .environmentObject(exerciseViewModel)
         .environmentObject(progressViewModel)
         .environmentObject(trainerViewModel)
+        .onChange(of: authViewModel.showOnboarding) { oldValue, newValue in
+            print("🔄 ContentView: showOnboarding changed from \(oldValue) to \(newValue)")
+        }
+        .onChange(of: authViewModel.hasCompletedOnboarding) { oldValue, newValue in
+            print("🔄 ContentView: hasCompletedOnboarding changed from \(oldValue) to \(newValue)")
+        }
     }
 }
 

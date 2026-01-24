@@ -172,11 +172,12 @@ extension Color {
         case .pull: return .green
         case .legs: return .purple
         case .pushPull: return .teal
-        case .upper: return .orange
+        case .upper: return .indigo
         case .lower: return .pink
         case .fullBody: return .red
         case .cardio: return .yellow
         case .rest: return .gray
+        case .basketball: return .orange
         }
     }
 

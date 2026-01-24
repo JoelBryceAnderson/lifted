@@ -35,6 +35,7 @@ class AuthViewModel: ObservableObject {
                 } else {
                     self?.user = nil
                     self?.hasCompletedOnboarding = false
+                    self?.showOnboarding = false
                 }
 
                 self?.isLoading = false
@@ -48,13 +49,45 @@ class AuthViewModel: ObservableObject {
                 self.user = existingUser
                 self.hasCompletedOnboarding = existingUser.onboardingCompleted
                 self.showOnboarding = !existingUser.onboardingCompleted
+                print("✅ Fetched user: \(existingUser.email ?? "no email"), onboardingCompleted: \(existingUser.onboardingCompleted), showOnboarding: \(self.showOnboarding)")
             } else {
-                // New user without a Firestore record
-                self.showOnboarding = true
+                // New user without a Firestore record - create from Firebase Auth
+                print("⚠️ No Firestore user found, creating from Firebase Auth")
+                if let firebaseUser = Auth.auth().currentUser {
+                    let newUser = User(
+                        id: firebaseUser.uid,
+                        email: firebaseUser.email ?? "",
+                        displayName: firebaseUser.displayName,
+                        onboardingCompleted: false
+                    )
+                    // Save to Firestore
+                    try await firestoreService.saveUser(newUser)
+                    self.user = newUser
+                    self.hasCompletedOnboarding = false
+                    self.showOnboarding = true
+                    print("✅ Created and saved new user from Firebase Auth: \(newUser.email)")
+                } else {
+                    print("❌ No Firebase Auth user found either")
+                    self.showOnboarding = true
+                }
             }
         } catch {
-            print("Error fetching user: \(error)")
-            self.showOnboarding = true
+            print("❌ Error fetching user: \(error)")
+            // Even on error, try to create user from Firebase Auth
+            if let firebaseUser = Auth.auth().currentUser {
+                let newUser = User(
+                    id: firebaseUser.uid,
+                    email: firebaseUser.email ?? "",
+                    displayName: firebaseUser.displayName,
+                    onboardingCompleted: false
+                )
+                self.user = newUser
+                self.hasCompletedOnboarding = false
+                self.showOnboarding = true
+                print("⚠️ Created temporary user from Firebase Auth after error: \(newUser.email)")
+            } else {
+                self.showOnboarding = true
+            }
         }
     }
 
@@ -174,8 +207,12 @@ class AuthViewModel: ObservableObject {
     // MARK: - Onboarding Completion
 
     func completeOnboarding() async {
-        guard var user = user else { return }
+        guard var user = user else { 
+            print("❌ completeOnboarding: No user found")
+            return 
+        }
 
+        print("✅ Starting to complete onboarding for user: \(user.id)")
         user.onboardingCompleted = true
 
         do {
@@ -183,8 +220,9 @@ class AuthViewModel: ObservableObject {
             self.user = user
             self.hasCompletedOnboarding = true
             self.showOnboarding = false
+            print("✅ Onboarding completed successfully. showOnboarding = \(self.showOnboarding)")
         } catch {
-            print("Error completing onboarding: \(error)")
+            print("❌ Error completing onboarding: \(error)")
         }
     }
 

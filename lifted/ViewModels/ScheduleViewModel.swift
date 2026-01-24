@@ -14,6 +14,9 @@ class ScheduleViewModel: ObservableObject {
 
     // Week Navigation
     @Published var currentWeekStart: Date = Date().startOfWeek
+    
+    // Day Selection
+    @Published var selectedDate: Date = Date()
 
     // MARK: - Dependencies
 
@@ -42,8 +45,20 @@ class ScheduleViewModel: ObservableObject {
         return (0..<7).map { offset in
             let date = calendar.date(byAdding: .day, value: offset, to: currentWeekStart) ?? currentWeekStart
             let session = weekSessions.first { calendar.isDate($0.scheduledDate, inSameDayAs: date) }
-            return WeekDay(date: date, session: session)
+            let isSelected = calendar.isDate(date, inSameDayAs: selectedDate)
+            return WeekDay(date: date, session: session, isSelected: isSelected)
         }
+    }
+    
+    var selectedDaySession: WorkoutSession? {
+        let calendar = Calendar.current
+        return weekSessions.first { calendar.isDate($0.scheduledDate, inSameDayAs: selectedDate) }
+    }
+    
+    var isSelectedDayRestDay: Bool {
+        guard let schedule = schedule else { return true }
+        let cycleDay = scheduleService.getCycleDay(for: selectedDate, schedule: schedule)
+        return schedule.dayType(for: cycleDay)?.isRest ?? true
     }
 
     // MARK: - Data Loading
@@ -95,6 +110,13 @@ class ScheduleViewModel: ObservableObject {
 
     func goToCurrentWeek() {
         currentWeekStart = Date().startOfWeek
+        selectedDate = Date()
+    }
+    
+    // MARK: - Day Selection
+    
+    func selectDate(_ date: Date) {
+        selectedDate = date
     }
 
     func loadWeekSessions(userId: String) async {
@@ -169,6 +191,7 @@ class ScheduleViewModel: ObservableObject {
 struct WeekDay: Identifiable {
     let date: Date
     let session: WorkoutSession?
+    let isSelected: Bool
 
     var id: Date { date }
 

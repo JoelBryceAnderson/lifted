@@ -99,11 +99,19 @@ struct TrainerNotesIntroView: View {
                 isLoading: onboardingViewModel.isLoading
             ) {
                 Task {
+                    print("🎯 Finish Setup button tapped")
                     if let userId = authViewModel.user?.id {
+                        print("🎯 User ID: \(userId)")
                         let success = await onboardingViewModel.completeOnboarding(userId: userId)
+                        print("🎯 OnboardingViewModel.completeOnboarding returned: \(success)")
                         if success {
                             await authViewModel.completeOnboarding()
+                            print("🎯 AuthViewModel.completeOnboarding completed")
+                        } else {
+                            print("❌ Failed to complete onboarding in OnboardingViewModel")
                         }
+                    } else {
+                        print("❌ No user ID found")
                     }
                 }
             }

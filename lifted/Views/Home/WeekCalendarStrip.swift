@@ -36,6 +36,9 @@ struct WeekCalendarStrip: View {
             HStack(spacing: 8) {
                 ForEach(scheduleViewModel.weekDays) { day in
                     WeekDayCell(day: day)
+                        .onTapGesture {
+                            scheduleViewModel.selectDate(day.date)
+                        }
                 }
             }
             .padding(.horizontal, 8)

@@ -8,36 +8,75 @@ struct OnboardingContainerView: View {
         NavigationStack {
             VStack {
                 // Progress indicator
-                if onboardingViewModel.currentStep != .welcome {
+                if shouldShowProgressBar {
                     OnboardingProgressBar(currentStep: onboardingViewModel.currentStep)
                         .padding(.horizontal)
                 }
 
-                // Content
-                TabView(selection: $onboardingViewModel.currentStep) {
-                    WelcomeView()
-                        .tag(OnboardingStep.welcome)
-
-                    CreateAccountView()
-                        .tag(OnboardingStep.createAccount)
-
-                    GoalSelectionView()
-                        .tag(OnboardingStep.goalSelection)
-
-                    ScheduleBuilderView()
-                        .tag(OnboardingStep.scheduleBuilder)
-
-                    StartingWeightsView()
-                        .tag(OnboardingStep.startingWeights)
-
-                    TrainerNotesIntroView()
-                        .tag(OnboardingStep.trainerNotes)
+                // Content - show different content based on auth state
+                if authViewModel.user == nil {
+                    // Full onboarding flow for non-authenticated users
+                    fullOnboardingFlow
+                } else {
+                    // Shortened flow for authenticated users
+                    authenticatedOnboardingFlow
                 }
-                .tabViewStyle(.page(indexDisplayMode: .never))
-                .animation(.easeInOut, value: onboardingViewModel.currentStep)
             }
             .environmentObject(onboardingViewModel)
+            .onAppear {
+                // If user is already logged in, start at goal selection
+                if authViewModel.user != nil {
+                    onboardingViewModel.currentStep = .goalSelection
+                }
+            }
         }
+    }
+    
+    private var shouldShowProgressBar: Bool {
+        onboardingViewModel.currentStep != .welcome && 
+        onboardingViewModel.currentStep != .createAccount
+    }
+    
+    private var fullOnboardingFlow: some View {
+        TabView(selection: $onboardingViewModel.currentStep) {
+            WelcomeView()
+                .tag(OnboardingStep.welcome)
+
+            CreateAccountView()
+                .tag(OnboardingStep.createAccount)
+
+            GoalSelectionView()
+                .tag(OnboardingStep.goalSelection)
+
+            ScheduleBuilderView()
+                .tag(OnboardingStep.scheduleBuilder)
+
+            StartingWeightsView()
+                .tag(OnboardingStep.startingWeights)
+
+            TrainerNotesIntroView()
+                .tag(OnboardingStep.trainerNotes)
+        }
+        .tabViewStyle(.page(indexDisplayMode: .never))
+        .animation(.easeInOut, value: onboardingViewModel.currentStep)
+    }
+    
+    private var authenticatedOnboardingFlow: some View {
+        TabView(selection: $onboardingViewModel.currentStep) {
+            GoalSelectionView()
+                .tag(OnboardingStep.goalSelection)
+
+            ScheduleBuilderView()
+                .tag(OnboardingStep.scheduleBuilder)
+
+            StartingWeightsView()
+                .tag(OnboardingStep.startingWeights)
+
+            TrainerNotesIntroView()
+                .tag(OnboardingStep.trainerNotes)
+        }
+        .tabViewStyle(.page(indexDisplayMode: .never))
+        .animation(.easeInOut, value: onboardingViewModel.currentStep)
     }
 }
 
