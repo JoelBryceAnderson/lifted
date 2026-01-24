@@ -210,6 +210,13 @@ class ScheduleViewModel: ObservableObject {
             var updatedSession = session
             updatedSession.workoutType = newWorkoutType
             
+            // Generate new exercise logs for the new workout type
+            let exerciseLogs = await generateExerciseLogsForWorkout(
+                workoutType: newWorkoutType,
+                userId: userId
+            )
+            updatedSession.exercises = exerciseLogs
+            
             // If it's a preview session (not saved), create it
             if session.exercises.isEmpty {
                 let _ = try await firestoreService.createInSubcollection(
@@ -261,13 +268,20 @@ class ScheduleViewModel: ObservableObject {
             let calendar = Calendar.current
             let cycleDay = scheduleService.getCycleDay(for: date, schedule: schedule)
             
-            // Create a new workout session for today
+            // Generate exercise logs for the new workout
+            let exerciseLogs = await generateExerciseLogsForWorkout(
+                workoutType: workoutType,
+                userId: userId
+            )
+            
+            // Create a new workout session for today with exercises
             let newSession = WorkoutSession(
                 userId: userId,
                 workoutType: workoutType,
                 scheduledDate: calendar.startOfDay(for: date),
                 cycleDay: cycleDay,
-                status: .scheduled
+                status: .scheduled,
+                exercises: exerciseLogs
             )
             
             let _ = try await firestoreService.createInSubcollection(
@@ -277,6 +291,11 @@ class ScheduleViewModel: ObservableObject {
                 subcollection: .workoutSessions,
                 documentId: newSession.id
             )
+            
+            // Immediately update the session in the view model
+            if calendar.isDateInToday(date) {
+                todaySession = newSession
+            }
             
             // Reschedule the rest of the week intelligently
             try await scheduleService.rescheduleWeekAfterChange(
@@ -334,6 +353,59 @@ class ScheduleViewModel: ObservableObject {
         }
         
         isLoading = false
+    }
+    
+    // MARK: - Helper Methods
+    
+    private func generateExerciseLogsForWorkout(
+        workoutType: WorkoutType,
+        userId: String
+    ) async -> [ExerciseLog] {
+        do {
+            // Try to load exercises from Firestore first
+            var exercises = try await firestoreService.getAllExercises()
+            
+            // Fallback to seed data if Firestore is empty
+            if exercises.isEmpty {
+                print("⚠️ No exercises in Firestore, using seed data")
+                exercises = ExerciseSeedData.exercises
+            }
+            
+            // Load user progressions
+            let progressions = try await firestoreService.getExerciseProgressions(userId: userId)
+            let exerciseProgressions = Dictionary(uniqueKeysWithValues: progressions.map { ($0.exerciseId, $0) })
+            
+            // Get exercise IDs for this workout type
+            let exerciseIds = WorkoutDefaults.defaultExercises(for: workoutType)
+            
+            // Generate exercise logs
+            let logs = exerciseIds.compactMap { exerciseId -> ExerciseLog? in
+                guard let exercise = exercises.first(where: { $0.id == exerciseId }) else {
+                    print("⚠️ Exercise not found: \(exerciseId)")
+                    return nil
+                }
+                
+                let progression = exerciseProgressions[exerciseId]
+                let targetWeight = progression?.currentTargetWeight ?? 0
+                let (sets, reps) = WorkoutDefaults.defaultSetsReps(for: exercise)
+                
+                return WarmupService.generateExerciseLog(
+                    exerciseId: exerciseId,
+                    exercise: exercise,
+                    targetWeight: targetWeight,
+                    targetReps: reps,
+                    workingSets: sets
+                )
+            }
+            
+            print("✅ Generated \(logs.count) exercise logs for \(workoutType.displayName)")
+            return logs
+            
+        } catch {
+            print("❌ Error generating exercise logs: \(error.localizedDescription)")
+            self.error = error.localizedDescription
+            return []
+        }
     }
 }
 

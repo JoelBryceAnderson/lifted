@@ -59,8 +59,17 @@ struct TodayWorkoutCard: View {
     }
     
     private var isSelectedDayRestDay: Bool {
+        // If there's an actual workout session, it's NOT a rest day (regardless of schedule)
         if scheduleViewModel.selectedDate.isToday {
+            if scheduleViewModel.todaySession != nil {
+                return false
+            }
             return scheduleViewModel.isRestDay
+        }
+        
+        // For other days, check if there's a session first
+        if scheduleViewModel.selectedDaySession != nil {
+            return false
         }
         return scheduleViewModel.isSelectedDayRestDay
     }
@@ -349,13 +358,12 @@ struct RestDayCard: View {
     }
     
     private func changeRestDayToWorkout(workoutType: WorkoutType) async {
-        guard let schedule = scheduleViewModel.schedule,
-              let userId = schedule.userId as String? else {
+        guard let schedule = scheduleViewModel.schedule else {
             return
         }
         
         await scheduleViewModel.changeRestDayToWorkout(
-            userId: userId,
+            userId: schedule.userId,
             date: date,
             workoutType: workoutType,
             schedule: schedule

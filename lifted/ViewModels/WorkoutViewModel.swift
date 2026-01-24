@@ -65,17 +65,27 @@ class WorkoutViewModel: ObservableObject {
         // Load exercises
         do {
             exercises = try await firestoreService.getAllExercises()
+            
+            // Fallback to seed data if Firestore is empty
+            if exercises.isEmpty {
+                print("⚠️ No exercises in Firestore, using seed data")
+                exercises = ExerciseSeedData.exercises
+            }
+            
             let progressions = try await firestoreService.getExerciseProgressions(userId: session.userId)
             exerciseProgressions = Dictionary(uniqueKeysWithValues: progressions.map { ($0.exerciseId, $0) })
 
             // Generate exercise logs if empty
             if newSession.exercises.isEmpty {
+                print("⚠️ Session has no exercises, generating them now")
                 newSession.exercises = generateExerciseLogs(
                     for: session.workoutType,
                     userId: session.userId,
                     plan: progressionPlan
                 )
             }
+            
+            print("✅ Starting workout with \(newSession.exercises.count) exercises")
 
             // Save session
             let _ = try await firestoreService.createInSubcollection(
@@ -90,6 +100,7 @@ class WorkoutViewModel: ObservableObject {
             currentExerciseIndex = 0
 
         } catch {
+            print("❌ Error starting workout: \(error.localizedDescription)")
             self.error = error.localizedDescription
         }
 
