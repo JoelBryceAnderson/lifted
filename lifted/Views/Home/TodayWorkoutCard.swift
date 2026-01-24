@@ -8,7 +8,29 @@ struct TodayWorkoutCard: View {
     let onMarkMissed: () -> Void
 
     var body: some View {
-        VStack(spacing: 0) {
+        VStack(spacing: 12) {
+            // Return to Today button
+            if !scheduleViewModel.selectedDate.isToday {
+                Button {
+                    withAnimation {
+                        scheduleViewModel.goToCurrentWeek()
+                    }
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "arrow.uturn.left.circle.fill")
+                            .font(.subheadline)
+                        Text("Return to Today")
+                            .font(.subheadline.weight(.medium))
+                    }
+                    .foregroundColor(.blue)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background(Color.blue.opacity(0.1))
+                    .cornerRadius(10)
+                }
+            }
+            
+            // Main card content
             if scheduleViewModel.isLoading {
                 LoadingView(message: "Loading...")
                     .frame(height: 200)
@@ -67,6 +89,9 @@ struct TodayWorkoutCard: View {
 }
 
 struct WorkoutCard: View {
+    @EnvironmentObject var scheduleViewModel: ScheduleViewModel
+    @State private var showWorkoutTypeChanger = false
+    
     let session: WorkoutSession
     let date: Date
     let onStartWorkout: () -> Void
@@ -94,6 +119,14 @@ struct WorkoutCard: View {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.title)
                         .foregroundColor(.green)
+                } else if date.isToday && session.status == .scheduled {
+                    Button {
+                        showWorkoutTypeChanger = true
+                    } label: {
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                            .font(.title3)
+                            .foregroundColor(.blue)
+                    }
                 }
             }
 
@@ -195,6 +228,38 @@ struct WorkoutCard: View {
         .background(Color(.systemBackground))
         .cornerRadius(16)
         .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 4)
+        .confirmationDialog(
+            "Change Today's Workout",
+            isPresented: $showWorkoutTypeChanger,
+            titleVisibility: .visible
+        ) {
+            ForEach([WorkoutType.push, .pull, .legs, .upper, .lower, .fullBody], id: \.self) { workoutType in
+                if workoutType != session.workoutType {
+                    Button(workoutType.displayName) {
+                        Task {
+                            await changeWorkoutType(to: workoutType)
+                        }
+                    }
+                }
+            }
+            
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This will update today's workout and reschedule the rest of the week accordingly.")
+        }
+    }
+    
+    private func changeWorkoutType(to newType: WorkoutType) async {
+        guard let schedule = scheduleViewModel.schedule else {
+            return
+        }
+        
+        await scheduleViewModel.changeWorkoutForToday(
+            userId: session.userId,
+            session: session,
+            newWorkoutType: newType,
+            schedule: schedule
+        )
     }
     
     private var workoutDateTitle: String {

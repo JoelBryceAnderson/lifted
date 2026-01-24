@@ -3,7 +3,7 @@ import Foundation
 struct WorkoutSession: Codable, Identifiable, Equatable {
     let id: String
     let userId: String
-    let workoutType: WorkoutType
+    var workoutType: WorkoutType  // Made mutable for on-the-fly changes
     let scheduledDate: Date
     let cycleDay: Int
     var startedAt: Date?

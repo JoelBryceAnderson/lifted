@@ -238,4 +238,108 @@ actor ScheduleService {
 
         return nil
     }
+    
+    // MARK: - On-the-Fly Schedule Changes
+    
+    /// Intelligently reschedules the rest of the week after a workout type change
+    func rescheduleWeekAfterChange(
+        userId: String,
+        changedDate: Date,
+        newWorkoutType: WorkoutType,
+        schedule: WorkoutSchedule
+    ) async throws {
+        let calendar = Calendar.current
+        
+        // Get all scheduled sessions for the rest of the week
+        let weekEndDate = calendar.date(byAdding: .day, value: 7, to: changedDate)!
+        let futureSessions: [WorkoutSession] = try await firestoreService.getWorkoutSessions(
+            userId: userId,
+            startDate: calendar.date(byAdding: .day, value: 1, to: changedDate)!,
+            endDate: weekEndDate
+        )
+        
+        let scheduledSessions = futureSessions.filter { $0.status == .scheduled }
+        
+        guard !scheduledSessions.isEmpty else { return }
+        
+        // Build the expected workout sequence from the schedule
+        let cycleDayOfChange = getCycleDay(for: changedDate, schedule: schedule)
+        var expectedSequence: [WorkoutType] = []
+        
+        // Start from the day after the change
+        for dayOffset in 1..<8 {
+            let cycleDay = (cycleDayOfChange + dayOffset) % schedule.cycleDurationDays
+            if let dayType = schedule.dayType(for: cycleDay),
+               case .workout(let workoutType) = dayType {
+                expectedSequence.append(workoutType)
+            }
+        }
+        
+        // Check if the change disrupted the natural flow
+        // If the new workout type matches what should have been the next workout, we're good
+        // Otherwise, we need to adjust
+        
+        var workoutsToSchedule: [WorkoutType] = []
+        
+        // Collect the original workout types that were scheduled
+        for session in scheduledSessions {
+            if let dayType = schedule.dayType(for: session.cycleDay),
+               case .workout(let originalType) = dayType {
+                // Skip the workout type that was just changed to (to avoid duplicates)
+                if originalType != newWorkoutType {
+                    workoutsToSchedule.append(originalType)
+                }
+            }
+        }
+        
+        // If the user is following a PPL or similar split, maintain the order
+        // by ensuring we don't duplicate the workout they just changed to
+        if !workoutsToSchedule.isEmpty {
+            // Mark old sessions as rescheduled
+            for var session in scheduledSessions {
+                session.status = .rescheduled
+                try await firestoreService.updateInSubcollection(
+                    session,
+                    parentCollection: .users,
+                    parentId: userId,
+                    subcollection: .workoutSessions,
+                    documentId: session.id
+                )
+            }
+            
+            // Create new sessions with adjusted workout types
+            var currentDate = changedDate
+            var workoutIndex = 0
+            
+            while workoutIndex < workoutsToSchedule.count {
+                currentDate = calendar.date(byAdding: .day, value: 1, to: currentDate)!
+                
+                // Skip rest days
+                if isRestDay(date: currentDate, schedule: schedule) {
+                    continue
+                }
+                
+                let cycleDay = getCycleDay(for: currentDate, schedule: schedule)
+                let workoutType = workoutsToSchedule[workoutIndex]
+                
+                let newSession = WorkoutSession(
+                    userId: userId,
+                    workoutType: workoutType,
+                    scheduledDate: currentDate,
+                    cycleDay: cycleDay,
+                    status: .scheduled
+                )
+                
+                let _ = try await firestoreService.createInSubcollection(
+                    newSession,
+                    parentCollection: .users,
+                    parentId: userId,
+                    subcollection: .workoutSessions,
+                    documentId: newSession.id
+                )
+                
+                workoutIndex += 1
+            }
+        }
+    }
 }

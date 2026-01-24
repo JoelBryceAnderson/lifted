@@ -194,6 +194,60 @@ class ScheduleViewModel: ObservableObject {
 
         isLoading = false
     }
+    
+    // MARK: - On-the-Fly Schedule Changes
+    
+    func changeWorkoutForToday(
+        userId: String,
+        session: WorkoutSession,
+        newWorkoutType: WorkoutType,
+        schedule: WorkoutSchedule
+    ) async {
+        isLoading = true
+        
+        do {
+            // Update today's session with new workout type
+            var updatedSession = session
+            updatedSession.workoutType = newWorkoutType
+            
+            // If it's a preview session (not saved), create it
+            if session.exercises.isEmpty {
+                let _ = try await firestoreService.createInSubcollection(
+                    updatedSession,
+                    parentCollection: .users,
+                    parentId: userId,
+                    subcollection: .workoutSessions,
+                    documentId: updatedSession.id
+                )
+            } else {
+                // Update existing session
+                try await firestoreService.updateInSubcollection(
+                    updatedSession,
+                    parentCollection: .users,
+                    parentId: userId,
+                    subcollection: .workoutSessions,
+                    documentId: updatedSession.id
+                )
+            }
+            
+            // Reschedule the rest of the week intelligently
+            await scheduleService.rescheduleWeekAfterChange(
+                userId: userId,
+                changedDate: session.scheduledDate,
+                newWorkoutType: newWorkoutType,
+                schedule: schedule
+            )
+            
+            // Reload data
+            await loadSchedule(userId: userId)
+            await loadWeekSessions(userId: userId)
+            
+        } catch {
+            self.error = error.localizedDescription
+        }
+        
+        isLoading = false
+    }
 }
 
 // MARK: - Week Day Model
