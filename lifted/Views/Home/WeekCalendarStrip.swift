@@ -62,19 +62,26 @@ struct WeekDayCell: View {
             // Day name
             Text(day.date.shortDayName)
                 .font(.caption2.weight(.medium))
-                .foregroundColor(day.isToday ? .blue : .secondary)
+                .foregroundColor(dayNameColor)
 
             // Day number
             ZStack {
                 Circle()
                     .fill(backgroundColor)
                     .frame(width: 36, height: 36)
+                
+                // Selection ring
+                if day.isSelected {
+                    Circle()
+                        .strokeBorder(Color.blue, lineWidth: 2)
+                        .frame(width: 40, height: 40)
+                }
 
                 if let workoutType = day.workoutType {
                     WorkoutTypeBadge(workoutType, size: .small)
                 } else {
                     Text(day.date.dayNumber)
-                        .font(.subheadline.weight(day.isToday ? .bold : .regular))
+                        .font(.subheadline.weight(day.isSelected ? .bold : .regular))
                         .foregroundColor(textColor)
                 }
             }
@@ -89,16 +96,29 @@ struct WeekDayCell: View {
     }
 
     private var backgroundColor: Color {
-        if day.isToday {
+        if day.isSelected {
             return .blue.opacity(0.15)
+        } else if day.isToday && !day.isSelected {
+            return .blue.opacity(0.08)
         } else if day.workoutType != nil {
             return Color.workoutTypeColor(day.workoutType!).opacity(0.15)
         }
         return Color(.systemGray6)
     }
+    
+    private var dayNameColor: Color {
+        if day.isSelected {
+            return .blue
+        } else if day.isToday {
+            return .blue.opacity(0.7)
+        }
+        return .secondary
+    }
 
     private var textColor: Color {
-        if day.isToday {
+        if day.isSelected {
+            return .blue
+        } else if day.isToday {
             return .blue
         } else if day.isPast {
             return .secondary

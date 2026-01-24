@@ -1,7 +1,7 @@
 import SwiftUI
 import Charts
 
-struct ProgressView: View {
+struct ProgressDashboardView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
     @EnvironmentObject var progressViewModel: ProgressViewModel
     @EnvironmentObject var exerciseViewModel: ExerciseViewModel
@@ -196,7 +196,7 @@ struct ExerciseProgressSection: View {
 }
 
 #Preview {
-    ProgressView()
+    ProgressDashboardView()
         .environmentObject(AuthViewModel())
         .environmentObject(ProgressViewModel())
         .environmentObject(ExerciseViewModel())

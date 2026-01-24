@@ -70,6 +70,40 @@ actor ScheduleService {
             status: .scheduled
         )
     }
+    
+    func getSessionForDate(_ date: Date, userId: String, schedule: WorkoutSchedule) async throws -> WorkoutSession? {
+        let calendar = Calendar.current
+        let targetDate = calendar.startOfDay(for: date)
+        let nextDay = calendar.date(byAdding: .day, value: 1, to: targetDate)!
+
+        // Try to find an existing session for this date
+        let sessions: [WorkoutSession] = try await firestoreService.getWorkoutSessions(
+            userId: userId,
+            startDate: targetDate,
+            endDate: nextDay
+        )
+
+        if let existing = sessions.first(where: { $0.status != .missed && $0.status != .rescheduled }) {
+            return existing
+        }
+
+        // Generate a preview session based on the schedule
+        let daysSinceScheduleStart = calendar.dateComponents([.day], from: schedule.createdAt, to: targetDate).day ?? 0
+        let cycleDay = daysSinceScheduleStart % schedule.cycleDurationDays
+
+        guard let scheduledDay = schedule.days.first(where: { $0.dayIndex == cycleDay }),
+              case .workout(let workoutType) = scheduledDay.dayType else {
+            return nil
+        }
+
+        return WorkoutSession(
+            userId: userId,
+            workoutType: workoutType,
+            scheduledDate: targetDate,
+            cycleDay: cycleDay,
+            status: .scheduled
+        )
+    }
 
     // MARK: - Missed Day Handling
 

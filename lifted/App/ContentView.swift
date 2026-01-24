@@ -61,7 +61,7 @@ struct MainTabView: View {
                 }
                 .tag(2)
 
-            ProgressView()
+            ProgressDashboardView()
                 .tabItem {
                     Label("Progress", systemImage: "chart.line.uptrend.xyaxis")
                 }

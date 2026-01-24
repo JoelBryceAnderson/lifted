@@ -40,6 +40,10 @@ extension Date {
         Calendar.current.isDateInYesterday(self)
     }
 
+    var isPast: Bool {
+        self.startOfDay < Date().startOfDay
+    }
+
     var isThisWeek: Bool {
         Calendar.current.isDate(self, equalTo: Date(), toGranularity: .weekOfYear)
     }

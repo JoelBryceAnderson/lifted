@@ -60,6 +60,12 @@ struct HomeView: View {
             .refreshable {
                 await loadData()
             }
+            .onChange(of: scheduleViewModel.currentWeekStart) { _, _ in
+                guard let userId = authViewModel.user?.id else { return }
+                Task {
+                    await scheduleViewModel.loadWeekSessions(userId: userId)
+                }
+            }
         }
     }
 

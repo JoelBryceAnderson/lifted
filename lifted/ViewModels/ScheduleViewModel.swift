@@ -60,6 +60,16 @@ class ScheduleViewModel: ObservableObject {
         let cycleDay = scheduleService.getCycleDay(for: selectedDate, schedule: schedule)
         return schedule.dayType(for: cycleDay)?.isRest ?? true
     }
+    
+    var selectedDayWorkoutType: WorkoutType? {
+        guard let schedule = schedule else { return nil }
+        let cycleDay = scheduleService.getCycleDay(for: selectedDate, schedule: schedule)
+        guard let scheduledDay = schedule.days.first(where: { $0.dayIndex == cycleDay }),
+              case .workout(let workoutType) = scheduledDay.dayType else {
+            return nil
+        }
+        return workoutType
+    }
 
     // MARK: - Data Loading
 
