@@ -231,10 +231,97 @@ class ScheduleViewModel: ObservableObject {
             }
             
             // Reschedule the rest of the week intelligently
-            await scheduleService.rescheduleWeekAfterChange(
+            try await scheduleService.rescheduleWeekAfterChange(
                 userId: userId,
                 changedDate: session.scheduledDate,
                 newWorkoutType: newWorkoutType,
+                schedule: schedule
+            )
+            
+            // Reload data
+            await loadSchedule(userId: userId)
+            await loadWeekSessions(userId: userId)
+            
+        } catch {
+            self.error = error.localizedDescription
+        }
+        
+        isLoading = false
+    }
+    
+    func changeRestDayToWorkout(
+        userId: String,
+        date: Date,
+        workoutType: WorkoutType,
+        schedule: WorkoutSchedule
+    ) async {
+        isLoading = true
+        
+        do {
+            let calendar = Calendar.current
+            let cycleDay = scheduleService.getCycleDay(for: date, schedule: schedule)
+            
+            // Create a new workout session for today
+            let newSession = WorkoutSession(
+                userId: userId,
+                workoutType: workoutType,
+                scheduledDate: calendar.startOfDay(for: date),
+                cycleDay: cycleDay,
+                status: .scheduled
+            )
+            
+            let _ = try await firestoreService.createInSubcollection(
+                newSession,
+                parentCollection: .users,
+                parentId: userId,
+                subcollection: .workoutSessions,
+                documentId: newSession.id
+            )
+            
+            // Reschedule the rest of the week intelligently
+            try await scheduleService.rescheduleWeekAfterChange(
+                userId: userId,
+                changedDate: date,
+                newWorkoutType: workoutType,
+                schedule: schedule
+            )
+            
+            // Reload data
+            await loadSchedule(userId: userId)
+            await loadWeekSessions(userId: userId)
+            
+        } catch {
+            self.error = error.localizedDescription
+        }
+        
+        isLoading = false
+    }
+    
+    func changeWorkoutToRestDay(
+        userId: String,
+        session: WorkoutSession,
+        schedule: WorkoutSchedule
+    ) async {
+        isLoading = true
+        
+        do {
+            // Mark the session as missed/skipped
+            var updatedSession = session
+            updatedSession.status = .missed
+            
+            try await firestoreService.updateInSubcollection(
+                updatedSession,
+                parentCollection: .users,
+                parentId: userId,
+                subcollection: .workoutSessions,
+                documentId: updatedSession.id
+            )
+            
+            // Reschedule workouts to push this workout to the next available day
+            try await scheduleService.rescheduleWeekAfterRestDayChange(
+                userId: userId,
+                changedDate: session.scheduledDate,
+                skippedWorkoutType: session.workoutType,
                 schedule: schedule
             )
             

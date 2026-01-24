@@ -8,29 +8,7 @@ struct TodayWorkoutCard: View {
     let onMarkMissed: () -> Void
 
     var body: some View {
-        VStack(spacing: 12) {
-            // Return to Today button
-            if !scheduleViewModel.selectedDate.isToday {
-                Button {
-                    withAnimation {
-                        scheduleViewModel.goToCurrentWeek()
-                    }
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "arrow.uturn.left.circle.fill")
-                            .font(.subheadline)
-                        Text("Return to Today")
-                            .font(.subheadline.weight(.medium))
-                    }
-                    .foregroundColor(.blue)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-                    .background(Color.blue.opacity(0.1))
-                    .cornerRadius(10)
-                }
-            }
-            
-            // Main card content
+        VStack(spacing: 0) {
             if scheduleViewModel.isLoading {
                 LoadingView(message: "Loading...")
                     .frame(height: 200)
@@ -119,14 +97,6 @@ struct WorkoutCard: View {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.title)
                         .foregroundColor(.green)
-                } else if date.isToday && session.status == .scheduled {
-                    Button {
-                        showWorkoutTypeChanger = true
-                    } label: {
-                        Image(systemName: "arrow.triangle.2.circlepath")
-                            .font(.title3)
-                            .foregroundColor(.blue)
-                    }
                 }
             }
 
@@ -243,6 +213,12 @@ struct WorkoutCard: View {
                 }
             }
             
+            Button("Make it a Rest Day", role: .destructive) {
+                Task {
+                    await changeWorkoutToRestDay()
+                }
+            }
+            
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("This will update today's workout and reschedule the rest of the week accordingly.")
@@ -258,6 +234,18 @@ struct WorkoutCard: View {
             userId: session.userId,
             session: session,
             newWorkoutType: newType,
+            schedule: schedule
+        )
+    }
+    
+    private func changeWorkoutToRestDay() async {
+        guard let schedule = scheduleViewModel.schedule else {
+            return
+        }
+        
+        await scheduleViewModel.changeWorkoutToRestDay(
+            userId: session.userId,
+            session: session,
             schedule: schedule
         )
     }
@@ -297,10 +285,31 @@ struct ExercisePreviewRow: View {
 }
 
 struct RestDayCard: View {
+    @EnvironmentObject var scheduleViewModel: ScheduleViewModel
+    @State private var showWorkoutTypeChanger = false
+    
     var date: Date = Date()
     
     var body: some View {
         VStack(spacing: 16) {
+            // Header with change button for today
+            HStack {
+                Spacer()
+                
+                if date.isToday {
+                    Button {
+                        showWorkoutTypeChanger = true
+                    } label: {
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                            .font(.title3)
+                            .foregroundColor(.blue)
+                    }
+                }
+            }
+            .padding(.horizontal, 8)
+            .frame(height: date.isToday ? nil : 0)
+            .opacity(date.isToday ? 1 : 0)
+            
             Image(systemName: "bed.double.fill")
                 .font(.system(size: 48))
                 .foregroundColor(.gray)
@@ -320,6 +329,37 @@ struct RestDayCard: View {
         .background(Color(.systemBackground))
         .cornerRadius(16)
         .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 4)
+        .confirmationDialog(
+            "Change Rest Day to Workout",
+            isPresented: $showWorkoutTypeChanger,
+            titleVisibility: .visible
+        ) {
+            ForEach([WorkoutType.push, .pull, .legs, .upper, .lower, .fullBody], id: \.self) { workoutType in
+                Button(workoutType.displayName) {
+                    Task {
+                        await changeRestDayToWorkout(workoutType: workoutType)
+                    }
+                }
+            }
+            
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This will convert today's rest day into a workout and may reschedule the rest of the week.")
+        }
+    }
+    
+    private func changeRestDayToWorkout(workoutType: WorkoutType) async {
+        guard let schedule = scheduleViewModel.schedule,
+              let userId = schedule.userId as String? else {
+            return
+        }
+        
+        await scheduleViewModel.changeRestDayToWorkout(
+            userId: userId,
+            date: date,
+            workoutType: workoutType,
+            schedule: schedule
+        )
     }
     
     private var restDayTitle: String {

@@ -342,4 +342,81 @@ actor ScheduleService {
             }
         }
     }
+    
+    /// Reschedules the rest of the week when a workout is changed to a rest day
+    func rescheduleWeekAfterRestDayChange(
+        userId: String,
+        changedDate: Date,
+        skippedWorkoutType: WorkoutType,
+        schedule: WorkoutSchedule
+    ) async throws {
+        let calendar = Calendar.current
+        
+        // Get all scheduled sessions for the rest of the week
+        let weekEndDate = calendar.date(byAdding: .day, value: 7, to: changedDate)!
+        let futureSessions: [WorkoutSession] = try await firestoreService.getWorkoutSessions(
+            userId: userId,
+            startDate: calendar.date(byAdding: .day, value: 1, to: changedDate)!,
+            endDate: weekEndDate
+        )
+        
+        let scheduledSessions = futureSessions.filter { $0.status == .scheduled }
+        
+        // Mark old sessions as rescheduled
+        for var session in scheduledSessions {
+            session.status = .rescheduled
+            try await firestoreService.updateInSubcollection(
+                session,
+                parentCollection: .users,
+                parentId: userId,
+                subcollection: .workoutSessions,
+                documentId: session.id
+            )
+        }
+        
+        // Build the new sequence: skipped workout + all future workouts
+        var workoutsToSchedule: [WorkoutType] = [skippedWorkoutType]
+        for session in scheduledSessions {
+            workoutsToSchedule.append(session.workoutType)
+        }
+        
+        // Schedule them starting from tomorrow
+        var currentDate = changedDate
+        var workoutIndex = 0
+        
+        while workoutIndex < workoutsToSchedule.count {
+            currentDate = calendar.date(byAdding: .day, value: 1, to: currentDate)!
+            
+            // Stop if we've gone too far into the future
+            if currentDate > weekEndDate {
+                break
+            }
+            
+            // Skip rest days in the schedule
+            if isRestDay(date: currentDate, schedule: schedule) {
+                continue
+            }
+            
+            let cycleDay = getCycleDay(for: currentDate, schedule: schedule)
+            let workoutType = workoutsToSchedule[workoutIndex]
+            
+            let newSession = WorkoutSession(
+                userId: userId,
+                workoutType: workoutType,
+                scheduledDate: currentDate,
+                cycleDay: cycleDay,
+                status: .scheduled
+            )
+            
+            let _ = try await firestoreService.createInSubcollection(
+                newSession,
+                parentCollection: .users,
+                parentId: userId,
+                subcollection: .workoutSessions,
+                documentId: newSession.id
+            )
+            
+            workoutIndex += 1
+        }
+    }
 }
